@@ -1,28 +1,32 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/contact.dart';
 
-Future<void> saveGroup(String groupName, List<Contact> contacts) async {
-  final prefs = await SharedPreferences.getInstance();
-  final contactList = contacts
-      .map((contact) =>
-          '${contact.name},${contact.phoneNumber},${contact.memberType}')
-      .toList();
-  await prefs.setStringList(groupName, contactList);
-}
-
 Future<Map<String, List<Contact>>> loadGroups() async {
   final prefs = await SharedPreferences.getInstance();
-  final keys = prefs.getKeys();
   final Map<String, List<Contact>> groups = {};
 
-  for (var key in keys) {
-    final contactList = prefs.getStringList(key) ?? [];
-    groups[key] = contactList.map((contactStr) {
-      final parts = contactStr.split(',');
-      return Contact(
-          name: parts[0], phoneNumber: parts[1], memberType: parts[2]);
-    }).toList();
+  for (String key in prefs.getKeys()) {
+    final String? groupContactsJson = prefs.getString(key);
+    if (groupContactsJson != null) {
+      final List<Contact> groupContacts = Contact.decode(groupContactsJson);
+      groups[key] = groupContacts;
+    }
   }
 
   return groups;
+}
+
+Future<void> saveGroup(String groupName, List<Contact> contacts) async {
+  final prefs = await SharedPreferences.getInstance();
+  prefs.setString(groupName, Contact.encode(contacts));
+}
+
+Future<void> deleteGroup(String groupName) async {
+  final prefs = await SharedPreferences.getInstance();
+  prefs.remove(groupName);
+}
+
+Future<void> resetData() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.clear();
 }

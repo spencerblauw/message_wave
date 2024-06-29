@@ -82,11 +82,10 @@ class _GroupScreenState extends State<GroupScreen> {
                     ],
                   ),
                 ),
-                Expanded(
+                const Expanded(
                   child: Column(
                     children: [
-                      const Text('Message History',
-                          style: TextStyle(fontSize: 18)),
+                      Text('Message History', style: TextStyle(fontSize: 18)),
                       // Add message history widget here
                     ],
                   ),

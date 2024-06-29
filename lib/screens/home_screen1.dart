@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import '../models/contact.dart';
-import '../services/group_service.dart' as groupService;
+import '../services/group_service.dart';
 import '../services/csv_service.dart';
-import '../services/reset_service.dart' as resetService;
 import '../screens/new_message_screen.dart';
 import '../screens/message_history_screen.dart';
 import '../screens/group_screen.dart';
@@ -30,12 +29,10 @@ class HomeScreenState extends State<HomeScreen> {
 
   // LOAD GROUPS Function
   Future<void> _loadGroups() async {
-    final groups = await groupService.loadGroups();
-    if (mounted) {
-      setState(() {
-        _groups = groups;
-      });
-    }
+    final groups = await loadGroups();
+    setState(() {
+      _groups = groups;
+    });
   }
 
   //RESET DATA function
@@ -45,7 +42,7 @@ class HomeScreenState extends State<HomeScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Confirm Reset'),
-          content: const Text('Are you sure you want to delete all data?'),
+          content: const Text('Are you sure you want to delete ALL data?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -60,15 +57,15 @@ class HomeScreenState extends State<HomeScreen> {
       },
     );
     if (result == true) {
-      await resetService.resetData();
+      await _resetData();
       _loadGroups(); // Reload groups after resetting
     }
   }
 
-  //Create New Group Function
+  //CREATE NEW GROUP Function
   Future<void> _createGroup() async {
     if (_currentGroupName.isNotEmpty) {
-      await groupService.saveGroup(_currentGroupName, _contacts);
+      await saveGroup(_currentGroupName, _contacts);
       _loadGroups();
       setState(() {
         _currentGroupName = '';
@@ -96,13 +93,16 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  //Create Top App Bar buttons
+//App Bar buttons
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        //App Bar Title - MessageWave
         title: const Align(
-            alignment: Alignment.centerLeft, child: Text('Message Wave')),
+          alignment: Alignment.topLeft,
+          child: Text('Message Wave'),
+        ),
         actions: [
           //TUTORIAL BUTTON
           TextButton.icon(
@@ -115,6 +115,7 @@ class HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
+
           //HISTORY BUTTON
           TextButton.icon(
             onPressed: () {
@@ -127,12 +128,13 @@ class HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.history),
             label: const Text('History'),
           ),
+
           //RESET BUTTON
           TextButton.icon(
             onPressed: () {
               _resetData();
             },
-            icon: const Icon(Icons.restore),
+            icon: const Icon(Icons.restart_alt),
             label: const Text('RESET DATA'),
           ),
         ],
@@ -179,6 +181,8 @@ class HomeScreenState extends State<HomeScreen> {
             },
             child: const Text('Create New Group'),
           ),
+
+          //GROUP ROWS/BUTTONS
           Expanded(
             child: ListView.builder(
               itemCount: _groups.keys.length,
@@ -189,34 +193,20 @@ class HomeScreenState extends State<HomeScreen> {
                       Text('$groupName (${_groups[groupName]?.length ?? 0})'),
 
                   //Send New Message Buttons
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextButton.icon(
-                        icon: const Icon(Icons.send),
-                        label: const Text('Send New Message'),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => NewMessageScreen(
-                                groupName: groupName,
-                                contacts: _groups[groupName]!,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      //DELETE GROUP Button
-                      TextButton.icon(
-                        icon: const Icon(Icons.delete),
-                        label: const Text('Delete Group'),
-                        onPressed: () async {
-                          await groupService.deleteGroup(groupName);
-                          _loadGroups();
-                        },
-                      ),
-                    ],
+                  trailing: TextButton.icon(
+                    icon: const Icon(Icons.send),
+                    label: const Text('Send New Message'),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => NewMessageScreen(
+                            groupName: groupName,
+                            contacts: _groups[groupName]!,
+                          ),
+                        ),
+                      );
+                    },
                   ),
 
                   //GROUP Buttons

@@ -8,7 +8,7 @@ final Logger _logger = Logger('SMSService');
 Future<void> sendPersonalizedMessages(
     List<Contact> contacts, String baseMessage) async {
   for (Contact contact in contacts) {
-    String message = 'Hello ${contact.firstName}, $baseMessage';
+    String message = 'Hello ${contact.name.split(' ').first}, $baseMessage';
     List<String> recipients = [contact.phoneNumber];
 
     try {
