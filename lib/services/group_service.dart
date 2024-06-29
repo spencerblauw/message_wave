@@ -4,7 +4,8 @@ import '../models/contact.dart';
 Future<void> saveGroup(String groupName, List<Contact> contacts) async {
   final prefs = await SharedPreferences.getInstance();
   final contactList = contacts
-      .map((contact) => '${contact.name},${contact.phoneNumber}')
+      .map((contact) =>
+          '${contact.name},${contact.phoneNumber},${contact.memberType}')
       .toList();
   await prefs.setStringList(groupName, contactList);
 }
@@ -18,7 +19,8 @@ Future<Map<String, List<Contact>>> loadGroups() async {
     final contactList = prefs.getStringList(key) ?? [];
     groups[key] = contactList.map((contactStr) {
       final parts = contactStr.split(',');
-      return Contact(name: parts[0], phoneNumber: parts[1]);
+      return Contact(
+          name: parts[0], phoneNumber: parts[1], memberType: parts[2]);
     }).toList();
   }
 

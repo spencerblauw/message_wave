@@ -1,10 +1,12 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'dart:io';
 import '../models/contact.dart';
 import '../services/csv_service.dart';
 import '../services/group_service.dart';
-import '../services/sms_service.dart';
+import 'group_screen.dart';
+import 'new_message_screen.dart';
+import 'message_history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -31,7 +33,7 @@ class HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _importCSV() async {
+  Future<void> _importCSV(BuildContext context) async {
     FilePickerResult? result = await FilePicker.platform
         .pickFiles(type: FileType.custom, allowedExtensions: ['csv']);
     if (result != null) {
@@ -40,6 +42,9 @@ class HomeScreenState extends State<HomeScreen> {
       setState(() {
         _contacts = contacts;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Contacts imported successfully!')),
+      );
     }
   }
 
@@ -51,41 +56,71 @@ class HomeScreenState extends State<HomeScreen> {
         _currentGroupName = '';
         _contacts = [];
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Group created successfully!')),
+      );
     }
-  }
-
-  Future<void> _sendMessages(String groupName) async {
-    final contacts = _groups[groupName] ?? [];
-    await sendPersonalizedMessages(contacts);
-  }
-
-  void _addContactManually(String name, String phoneNumber) {
-    setState(() {
-      _contacts.add(Contact(name: name, phoneNumber: phoneNumber));
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Message Wave')),
+      appBar: AppBar(
+        title: const Center(child: Text('Message Wave')),
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const MessageHistoryScreen()),
+              );
+            },
+            icon: const Icon(Icons.history),
+            label: const Text('History'),
+          ),
+        ],
+      ),
       body: Column(
         children: [
-          ElevatedButton(
-            onPressed: _importCSV,
-            child: const Text('Import Contacts from CSV'),
+          Center(
+            child: Image.asset(
+              'logo.png',
+              height: 100,
+              width: 100,
+            ),
           ),
-          TextField(
-            decoration: const InputDecoration(labelText: 'Group Name'),
-            onChanged: (value) {
+          ElevatedButton(
+            onPressed: () {
               setState(() {
-                _currentGroupName = value;
+                _currentGroupName = '';
+                _contacts = [];
               });
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Create New Group'),
+                  content: TextField(
+                    decoration: const InputDecoration(labelText: 'Group Name'),
+                    onChanged: (value) {
+                      setState(() {
+                        _currentGroupName = value;
+                      });
+                    },
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _createGroup();
+                      },
+                      child: const Text('Save'),
+                    ),
+                  ],
+                ),
+              );
             },
-          ),
-          ElevatedButton(
-            onPressed: _createGroup,
-            child: const Text('Save Group'),
+            child: const Text('Create New Group'),
           ),
           Expanded(
             child: ListView.builder(
@@ -93,97 +128,36 @@ class HomeScreenState extends State<HomeScreen> {
               itemBuilder: (context, index) {
                 String groupName = _groups.keys.elementAt(index);
                 return ListTile(
-                  title: Text(groupName),
+                  title:
+                      Text('$groupName (${_groups[groupName]?.length ?? 0})'),
                   trailing: IconButton(
                     icon: const Icon(Icons.send),
-                    onPressed: () => _sendMessages(groupName),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => NewMessageScreen(
+                            groupName: groupName,
+                            contacts: _groups[groupName]!,
+                          ),
+                        ),
+                      );
+                    },
                   ),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => GroupScreen(
+                          groupName: groupName,
+                          contacts: _groups[groupName]!,
+                        ),
+                      ),
+                    );
+                  },
                 );
               },
             ),
-          ),
-          const Divider(),
-          const Text('Manually Add Contact'),
-          TextField(
-            decoration: const InputDecoration(labelText: 'Contact Name'),
-            onSubmitted: (name) {
-              showDialog(
-                context: context,
-                builder: (context) {
-                  return AlertDialog(
-                    title: const Text('Enter Phone Number'),
-                    content: TextField(
-                      decoration:
-                          const InputDecoration(labelText: 'Phone Number'),
-                      onSubmitted: (phoneNumber) {
-                        _addContactManually(name, phoneNumber);
-                        Navigator.pop(context);
-                      },
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-          ElevatedButton(
-            onPressed: () {
-              // Open the new message screen
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => NewMessageScreen(groups: _groups)),
-              );
-            },
-            child: const Text('New Message'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class NewMessageScreen extends StatelessWidget {
-  final Map<String, List<Contact>> groups;
-
-  const NewMessageScreen({Key? key, required this.groups}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    String message = '';
-    String selectedGroup = '';
-    return Scaffold(
-      appBar: AppBar(title: const Text('New Message')),
-      body: Column(
-        children: [
-          TextField(
-            decoration: const InputDecoration(labelText: 'Message'),
-            onChanged: (value) {
-              message = value;
-            },
-          ),
-          DropdownButton<String>(
-            hint: const Text('Select Group'),
-            value: selectedGroup.isEmpty ? null : selectedGroup,
-            onChanged: (String? newValue) {
-              if (newValue != null) {
-                selectedGroup = newValue;
-              }
-            },
-            items: groups.keys.map<DropdownMenuItem<String>>((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value),
-              );
-            }).toList(),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (selectedGroup.isNotEmpty && message.isNotEmpty) {
-                await sendPersonalizedMessages(groups[selectedGroup]!);
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Send Message'),
           ),
         ],
       ),

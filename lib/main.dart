@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
+import 'package:logging/logging.dart';
+
+void _setupLogging() {
+  Logger.root.level = Level.ALL; // Set to the desired level
+  Logger.root.onRecord.listen((record) {
+    print('${record.level.name}: ${record.time}: ${record.message}');
+  });
+}
 
 void main() {
+  _setupLogging();
   runApp(const MessageWaveApp());
 }
 
@@ -10,8 +19,12 @@ class MessageWaveApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: HomeScreen(),
+    return MaterialApp(
+      title: 'Message Wave',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: const HomeScreen(),
     );
   }
 }
