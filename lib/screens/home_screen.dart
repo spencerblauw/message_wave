@@ -16,6 +16,7 @@ class HomeScreen extends StatefulWidget {
 class HomeScreenState extends State<HomeScreen> {
   List<Contact> _contacts = [];
   Map<String, List<Contact>> _groups = {};
+  String _currentGroupName = '';
 
   @override
   void initState() {
@@ -42,14 +43,26 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _createGroup(String groupName) async {
-    await saveGroup(groupName, _contacts);
-    _loadGroups();
+  Future<void> _createGroup() async {
+    if (_currentGroupName.isNotEmpty) {
+      await saveGroup(_currentGroupName, _contacts);
+      _loadGroups();
+      setState(() {
+        _currentGroupName = '';
+        _contacts = [];
+      });
+    }
   }
 
   Future<void> _sendMessages(String groupName) async {
     final contacts = _groups[groupName] ?? [];
     await sendPersonalizedMessages(contacts);
+  }
+
+  void _addContactManually(String name, String phoneNumber) {
+    setState(() {
+      _contacts.add(Contact(name: name, phoneNumber: phoneNumber));
+    });
   }
 
   @override
@@ -64,7 +77,15 @@ class HomeScreenState extends State<HomeScreen> {
           ),
           TextField(
             decoration: const InputDecoration(labelText: 'Group Name'),
-            onSubmitted: _createGroup,
+            onChanged: (value) {
+              setState(() {
+                _currentGroupName = value;
+              });
+            },
+          ),
+          ElevatedButton(
+            onPressed: _createGroup,
+            child: const Text('Save Group'),
           ),
           Expanded(
             child: ListView.builder(
@@ -80,6 +101,89 @@ class HomeScreenState extends State<HomeScreen> {
                 );
               },
             ),
+          ),
+          const Divider(),
+          const Text('Manually Add Contact'),
+          TextField(
+            decoration: const InputDecoration(labelText: 'Contact Name'),
+            onSubmitted: (name) {
+              showDialog(
+                context: context,
+                builder: (context) {
+                  return AlertDialog(
+                    title: const Text('Enter Phone Number'),
+                    content: TextField(
+                      decoration:
+                          const InputDecoration(labelText: 'Phone Number'),
+                      onSubmitted: (phoneNumber) {
+                        _addContactManually(name, phoneNumber);
+                        Navigator.pop(context);
+                      },
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // Open the new message screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => NewMessageScreen(groups: _groups)),
+              );
+            },
+            child: const Text('New Message'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class NewMessageScreen extends StatelessWidget {
+  final Map<String, List<Contact>> groups;
+
+  const NewMessageScreen({Key? key, required this.groups}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    String message = '';
+    String selectedGroup = '';
+    return Scaffold(
+      appBar: AppBar(title: const Text('New Message')),
+      body: Column(
+        children: [
+          TextField(
+            decoration: const InputDecoration(labelText: 'Message'),
+            onChanged: (value) {
+              message = value;
+            },
+          ),
+          DropdownButton<String>(
+            hint: const Text('Select Group'),
+            value: selectedGroup.isEmpty ? null : selectedGroup,
+            onChanged: (String? newValue) {
+              if (newValue != null) {
+                selectedGroup = newValue;
+              }
+            },
+            items: groups.keys.map<DropdownMenuItem<String>>((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(value),
+              );
+            }).toList(),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (selectedGroup.isNotEmpty && message.isNotEmpty) {
+                await sendPersonalizedMessages(groups[selectedGroup]!);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Send Message'),
           ),
         ],
       ),
