@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/contact.dart';
-import '../services/sms_service.dart';
+import '../services/message_service.dart' as messageService;
 
 class NewMessageScreen extends StatelessWidget {
   final String groupName;
@@ -34,7 +34,8 @@ class NewMessageScreen extends StatelessWidget {
                   const InputDecoration(labelText: 'Member Type (Optional)'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
+                String groupName = messageController.text;
                 String message = messageController.text;
                 String? memberType = memberTypeController.text.isNotEmpty
                     ? memberTypeController.text
@@ -45,9 +46,12 @@ class NewMessageScreen extends StatelessWidget {
                         .toList()
                     : contacts;
 
-                sendPersonalizedMessages(filteredContacts, message);
+                await messageService.sendMessage(
+                    message, groupName, memberType!, filteredContacts);
 
-                Navigator.pop(context);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                }
               },
               child: const Text('Send Message'),
             ),

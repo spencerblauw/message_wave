@@ -1,17 +1,15 @@
 import 'dart:convert';
 
+//Create model class for an individual contact
 class Contact {
   final String name;
   final String phoneNumber;
   final String memberType;
 
-  Contact({
-    required this.name,
-    required this.phoneNumber,
-    required this.memberType,
-  });
+  Contact(
+      {required this.name, required this.phoneNumber, this.memberType = ''});
 
-  // Factory constructor for creating a new Contact instance from a map.
+  // Method to create new contact from Json
   factory Contact.fromJson(Map<String, dynamic> json) {
     return Contact(
       name: json['name'],
@@ -20,7 +18,7 @@ class Contact {
     );
   }
 
-  // Method for converting a Contact instance to a map.
+  // Method to convert a Contact to a json.
   Map<String, dynamic> toJson() {
     return {
       'name': name,
@@ -43,6 +41,7 @@ class Contact {
         .toList());
   }
 
+  // Method for returning a string of information about a contact
   @override
   String toString() {
     return 'Contact{name: $name, phoneNumber: $phoneNumber, memberType: $memberType}';
