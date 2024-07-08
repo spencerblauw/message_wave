@@ -17,7 +17,10 @@ dependencies:
   file_picker: ^8.0.5
   logging: ^1.0.2 
   permission_handler: ^11.3.1
-  flutter_sms: ^2.3.3
+  flutter_sms: 
+    git:
+      url: https://github.com/fluttercommunity/flutter_sms.git
+      ref: master
   url_launcher: ^6.3.0
 dev_dependencies:
   flutter_test:
