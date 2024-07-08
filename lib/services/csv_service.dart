@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:csv/csv.dart';
 import '../models/contact.dart';
 
+//Method that handles the csv file and returns contact information
 Future<List<Contact>> importContactsFromCSV(File file) async {
   final input = file.openRead();
   final fields = await input
@@ -10,6 +11,7 @@ Future<List<Contact>> importContactsFromCSV(File file) async {
       .transform(const CsvToListConverter())
       .toList();
 
+//Set specific to Stakeholder CSV format for now
   return fields.skip(1).map((row) {
     final firstName = row[1];
     final lastName = row[2];

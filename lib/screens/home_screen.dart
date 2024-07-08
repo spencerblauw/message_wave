@@ -1,16 +1,18 @@
+// ignore_for_file: avoid_print
+
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:message_wave/main.dart';
 import '../models/contact.dart';
-// ignore: library_prefixes
 import '../services/group_service.dart' as groupService;
-// ignore: library_prefixes
 import '../services/csv_service.dart' as csvService;
+import '../services/reset_services.dart' as resetServices;
 import '../screens/new_message_screen.dart';
 import '../screens/message_history_screen.dart';
 import '../screens/group_screen.dart';
 import '../screens/tutorial_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 // Create the Home Screen class
 class HomeScreen extends StatefulWidget {
@@ -22,33 +24,183 @@ class HomeScreen extends StatefulWidget {
 
 // Create the Home Screen state
 class HomeScreenState extends State<HomeScreen> {
-  List<Contact> _contacts = [];
-  Map<String, List<Contact>> _groups = {};
+  // Create state variables
   String _currentGroupName = '';
+  List<Contact> _newContacts = [];
+  Map<String, List<Contact>> _groups = {};
 
-  //Method to initialize the HomeScreen
-  @override
-  void initState() {
-    super.initState();
-    //Load groups that were previously saved
-    _loadGroups();
-  }
+  //Method to request permissions for files and sms
+  Future<void> _requestPermissions() async {
+    var status = await Permission.storage.status;
+    if (!status.isGranted) {
+      await Permission.storage.request();
+    }
 
-  //Method to Load Groups
-  Future<void> _loadGroups() async {
-    final groups = await groupService.loadGroups();
-    if (mounted) {
-      setState(() {
-        _groups = groups;
-      });
+    var smsStatus = await Permission.sms.status;
+    if (!smsStatus.isGranted) {
+      await Permission.sms.request();
     }
   }
 
+  // Method to initialize the HomeScreen
+  @override
+  void initState() {
+    super.initState();
+    _loadGroups();
+    _requestPermissions(); // Request permissions
+  }
+
+  // Internal method to load previous group data from the groupContactsJson
+  Future<void> _loadGroups() async {
+    final groups = await groupService.loadGroups();
+    setState(() {
+      _groups = groups;
+      print("Groups loaded in _loadGroups: $_groups");
+    });
+  }
+
+  // Method to create New Group
+  Future<void> _createGroup() async {
+    if (_currentGroupName.isNotEmpty) {
+      print("Creating group: $_currentGroupName with contacts: $_newContacts");
+      // Save Group
+      await groupService.saveGroup(_currentGroupName, _newContacts);
+      // Reset Variables and Reload Groups
+      await _loadGroups();
+      setState(() {
+        _currentGroupName = '';
+        _newContacts = [];
+      });
+      // Display success Message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Group created successfully!')),
+        );
+      }
+    } else {
+      print("Group name is empty.");
+    }
+  }
+
+  // Method to display contacts and allow saving to a group
+  void _showContactsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        List<bool> selectedContacts =
+            List<bool>.filled(_newContacts.length, false);
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Select Contacts to Save'),
+              content: SingleChildScrollView(
+                child: Column(
+                  children: List.generate(_newContacts.length, (index) {
+                    return CheckboxListTile(
+                      title: Text(_newContacts[index].name),
+                      value: selectedContacts[index],
+                      onChanged: (bool? value) {
+                        setState(() {
+                          selectedContacts[index] = value ?? false;
+                        });
+                      },
+                    );
+                  }),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    List<Contact> selected = [];
+                    for (int i = 0; i < selectedContacts.length; i++) {
+                      if (selectedContacts[i]) {
+                        selected.add(_newContacts[i]);
+                      }
+                    }
+                    groupService.addNewContactToGroup(
+                        _currentGroupName, selected);
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+// Method to import contacts via CSV
+  Future<void> _importCSV() async {
+    try {
+      print("CSV import button clicked"); // Debugging statement
+
+      // Select File
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['csv'],
+      );
+
+      print("File picker triggered"); // Debugging statement
+
+      // Process File
+      if (result != null && result.files.isNotEmpty) {
+        PlatformFile platformFile = result.files.first;
+        String? filePath = platformFile.path;
+
+        if (filePath != null) {
+          File file = File(filePath);
+          print("Selected file path: ${file.path}"); // Debugging statement
+          _newContacts = await csvService.importContactsFromCSV(file);
+
+          // Stage new contacts
+          if (_newContacts.isNotEmpty) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('New contacts staged from file!')),
+              );
+            }
+          }
+
+          // Display dialog to select and save contacts to a group
+          _showContactsDialog();
+
+          // Reset Variables and Reload Groups
+          await _loadGroups();
+          setState(() {
+            _currentGroupName = '';
+            _newContacts = [];
+          });
+        } else {
+          print("No file path found."); // Debugging statement
+        }
+      } else {
+        print("No file selected."); // Debugging statement
+      }
+    } catch (e) {
+      print("Error importing CSV: $e"); // Debugging statement
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error importing CSV: $e')),
+        );
+      }
+    }
+  }
+
+  //Method when Reset Data button is clicked
   Future<void> _resetData() async {
     //Create option flags
     bool deleteGroups = false;
     bool deleteMessages = false;
     bool deleteLogs = false;
+    bool deleteAll = false;
 
     //Create dialogue box with options on what to delete
     final result = await showDialog<bool>(
@@ -93,6 +245,18 @@ class HomeScreenState extends State<HomeScreen> {
                       });
                     },
                   ),
+                  CheckboxListTile(
+                    title: const Text('Reset ALL data?'),
+                    value: deleteAll,
+                    onChanged: (bool? value) {
+                      setState(() {
+                        deleteAll = value ?? false;
+                        deleteMessages = value ?? false;
+                        deleteLogs = value ?? false;
+                        deleteGroups = value ?? false;
+                      });
+                    },
+                  ),
                 ],
               ),
               //Buttons to confirm or cancel
@@ -113,82 +277,31 @@ class HomeScreenState extends State<HomeScreen> {
     );
     //Execute based on selection after confirmation
     if (result == true) {
-      if (deleteGroups) {
-        await resetGroups();
-      }
-      if (deleteMessages) {
-        await resetMessages();
-      }
-      if (deleteLogs) {
-        await resetLogs();
-      }
-      // Reload groups after resetting
-      _loadGroups();
-    }
-  }
-
-  //Method to reset groups
-  Future<void> resetGroups() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs
-        .remove('groups'); // Assuming 'groups' is the key for storing groups
-  }
-
-  //Method to reset messages
-  Future<void> resetMessages() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(
-        'messages'); // Assuming 'messages' is the key for storing message history
-  }
-
-  //Method to reset logs
-  Future<void> resetLogs() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('logs'); // Assuming 'logs' is the key for storing logs
-  }
-
-  //Method to create New Group
-  Future<void> _createGroup() async {
-    if (_currentGroupName.isNotEmpty) {
-      await groupService.saveGroup(_currentGroupName, _contacts);
+      await resetServices.resetData(
+          deleteGroups: deleteGroups,
+          deleteMessages: deleteMessages,
+          deleteLogs: deleteLogs,
+          deleteAll: deleteAll);
+      await _loadGroups();
+      //Notify User data has been deleted
       if (mounted) {
-        _loadGroups();
-        setState(() {
-          _currentGroupName = '';
-          _contacts = [];
-        });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Group created successfully!')),
+          const SnackBar(content: Text('Data has been erased!')),
         );
       }
-    }
-  }
-
-  //Import CSV Function
-  Future<void> _importCSV() async {
-    FilePickerResult? result = await FilePicker.platform
-        .pickFiles(type: FileType.custom, allowedExtensions: ['csv']);
-    if (result != null) {
-      File file = File(result.files.single.path!);
-      final contacts = await csvService.importContactsFromCSV(file);
-      if (!mounted) return;
-      setState(() {
-        _contacts = contacts;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Contacts imported successfully!')),
-      );
     }
   }
 
   //Create Top App Bar buttons and Group display panel
   @override
   Widget build(BuildContext context) {
+    print("Building HomeScreen with groups: $_groups");
     return Scaffold(
       appBar: AppBar(
         //Main Title
         title: const Align(
             alignment: Alignment.centerLeft, child: Text('Message Wave')),
+
         actions: [
           //Tutorial button
           TextButton.icon(
@@ -201,6 +314,7 @@ class HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
+
           //Message history button
           TextButton.icon(
             onPressed: () {
@@ -213,6 +327,7 @@ class HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.history),
             label: const Text('History'),
           ),
+
           //Reset data button
           TextButton.icon(
             onPressed: () {
@@ -238,7 +353,7 @@ class HomeScreenState extends State<HomeScreen> {
             onPressed: () {
               setState(() {
                 _currentGroupName = '';
-                _contacts = [];
+                _newContacts = [];
               });
               showDialog(
                 context: context,
@@ -247,13 +362,10 @@ class HomeScreenState extends State<HomeScreen> {
                   content: TextField(
                     decoration: const InputDecoration(labelText: 'Group Name'),
                     onChanged: (value) {
-                      setState(() {
-                        _currentGroupName = value;
-                      });
+                      _currentGroupName = value;
                     },
                   ),
                   actions: [
-                    //CREATE NEW GROUP Button
                     TextButton(
                       onPressed: () {
                         Navigator.pop(context);
@@ -277,7 +389,6 @@ class HomeScreenState extends State<HomeScreen> {
                 return ListTile(
                   title:
                       Text('$groupName (${_groups[groupName]?.length ?? 0})'),
-
                   //Per Group (horizontal rows)
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -298,18 +409,31 @@ class HomeScreenState extends State<HomeScreen> {
                           );
                         },
                       ),
+                      //Add contacts to group via CSV button
+                      TextButton.icon(
+                        icon: const Icon(Icons.import_contacts),
+                        label: const Text('Add new contacts via CSV'),
+                        onPressed: () async {
+                          print(
+                              "CSV import button clicked"); // Debugging statement
+                          await _importCSV();
+                        },
+                      ),
                       //Delete group button
                       TextButton.icon(
                         icon: const Icon(Icons.delete),
                         label: const Text('Delete Group'),
                         onPressed: () async {
-                          await groupService.deleteGroup(groupName);
-                          _loadGroups();
+                          if (await showConfirmationDialog(context, 'Confirm',
+                              'Are you sure you want to delete $groupName?')) {
+                            await groupService.deleteGroup(groupName);
+                            await _loadGroups();
+                          }
                         },
                       ),
                     ],
                   ),
-                  //Group horizontal row itself (button)
+                  //Group (button)
                   onTap: () {
                     Navigator.push(
                       context,

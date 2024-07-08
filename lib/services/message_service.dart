@@ -15,10 +15,23 @@ Future<void> sendMessage(String content, String groupName, String memberType,
   int successCount = 0;
   List<String> failedRecipients = [];
   List<String> failedRecipientsNames = [];
+  //Add String prefix
+  //Add String suffix
+  //text entry from a prompt saying "Pick your desired greeting for everyone:"
+  // Please enter your desired custom "prefix"
+  // "<prefix> <firstName>, <message>, <suffix>"
+  // "Please enter your desired message:"
+  // <prefix> <firstName>, <message>, <suffix>"
+  // Please enter your desired custom "suffix"
+  // "Your messages will be recieved like this:
+  // <prefix> <firstName>, <message>, <suffix>"
+  // "Are you ready to send?"
+  // if no: message saved in drafts
+  // if yes: message sent, saved in message history
 
   //Create personal message for recipient
   for (Contact contact in contacts) {
-    String message = 'Hello ${contact.name.split(' ').first}, $content';
+    String message = 'Hey ${contact.name.split(' ').first}, $content';
 
     //Send SMS of personal message to recipient
     try {

@@ -36,6 +36,58 @@ void _writeLog(File file, String log) {
   file.writeAsStringSync('$log\n', mode: FileMode.append);
 }
 
+//Method to show an Alert Dialog to notify user
+void showAlertDialog(BuildContext context, String title, String message) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            child: const Text("OK"),
+            onPressed: () {
+              Navigator.of(context).pop(); // Dismiss the dialog
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
+
+// Method to display confirmation dialog yes or no
+Future<bool> showConfirmationDialog(
+    BuildContext context, String title, String message) async {
+  return await showDialog<bool>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actions: [
+              TextButton(
+                child: const Text("No"),
+                onPressed: () {
+                  Navigator.of(context)
+                      .pop(false); // Dismiss the dialog and return false
+                },
+              ),
+              TextButton(
+                child: const Text("Yes"),
+                onPressed: () {
+                  Navigator.of(context)
+                      .pop(true); // Dismiss the dialog and return true
+                },
+              ),
+            ],
+          );
+        },
+      ) ??
+      false; // Return false if dialog is dismissed
+}
+
 // App Class
 class MessageWaveApp extends StatelessWidget {
   const MessageWaveApp({Key? key}) : super(key: key);

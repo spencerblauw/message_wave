@@ -27,6 +27,7 @@ class _GroupScreenState extends State<GroupScreen> {
     super.dispose();
   }
 
+// TODO: Change to call the addNewContactToGroup function
   void _addContact() {
     setState(() {
       widget.contacts.add(Contact(
