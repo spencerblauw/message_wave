@@ -83,7 +83,7 @@ class HomeScreenState extends State<HomeScreen> {
   }
   // Method to display contacts and allow saving to a group
 
-  void _showContactsDialog() {
+  void _showContactsDialog(String groupName) {
     showDialog(
       context: context,
       builder: (context) {
@@ -154,9 +154,9 @@ class HomeScreenState extends State<HomeScreen> {
                       }
                     }
                     print(
-                        "Saving contacts to group: '$_currentGroupName' with data: $selected");
+                        "Saving contacts to group: '$groupName' with data: $selected");
                     await groupService.addNewContactToGroup(
-                        _currentGroupName, selected);
+                        groupName, selected);
                     await _loadGroups(); // Refresh groups after saving
                     Navigator.pop(context);
                   },
@@ -171,10 +171,9 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   // Mathod to import a CSV file to get new contacts to a group
-  Future<void> _importCSV() async {
+  Future<void> _importCSV(String groupName) async {
     try {
-      print("CSV import button clicked");
-
+      print('groupname is $groupName in importcsv');
       // Select File
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -204,7 +203,7 @@ class HomeScreenState extends State<HomeScreen> {
             );
 
             // Display dialog to select and save contacts to a group
-            _showContactsDialog();
+            _showContactsDialog(groupName);
           } else {
             print('No contacts imported.');
           }
@@ -443,8 +442,8 @@ class HomeScreenState extends State<HomeScreen> {
                         label: const Text('Add new contacts via CSV'),
                         onPressed: () async {
                           print(
-                              "CSV import button clicked"); // Debugging statement
-                          await _importCSV();
+                              "CSV import button clicked for group: $groupName"); // Debugging statement
+                          await _importCSV(groupName);
                         },
                       ),
                       //Delete group button
