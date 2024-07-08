@@ -192,11 +192,16 @@ class HomeScreenState extends State<HomeScreen> {
           List<Contact> importedContacts =
               await csvService.importContactsFromCSV(file);
           print('Imported contacts: $importedContacts');
-
+          // Filter out duplicates
+          List<Contact> uniqueContacts = importedContacts.where((newContact) {
+            return !_groups[groupName]!.any((existingContact) =>
+                existingContact.name == newContact.name &&
+                existingContact.phoneNumber == newContact.phoneNumber);
+          }).toList();
           // Stage new contacts
-          if (importedContacts.isNotEmpty) {
+          if (uniqueContacts.isNotEmpty) {
             setState(() {
-              _newContacts = importedContacts;
+              _newContacts = uniqueContacts;
             });
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('New contacts staged from file!')),
@@ -205,7 +210,10 @@ class HomeScreenState extends State<HomeScreen> {
             // Display dialog to select and save contacts to a group
             _showContactsDialog(groupName);
           } else {
-            print('No contacts imported.');
+            print('No unique contacts imported.');
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No unique contacts to import.')),
+            );
           }
         } else {
           print("No file path found.");

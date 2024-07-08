@@ -18,32 +18,111 @@ class _GroupScreenState extends State<GroupScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneNumberController = TextEditingController();
   final TextEditingController _memberTypeController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
+  List<Contact> _filteredContacts = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredContacts = widget.contacts;
+    _searchController.addListener(_filterContacts);
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
     _phoneNumberController.dispose();
     _memberTypeController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
-// TODO: Change to call the addNewContactToGroup function
+  void _filterContacts() {
+    setState(() {
+      _filteredContacts = widget.contacts
+          .where((contact) =>
+              contact.name
+                  .toLowerCase()
+                  .contains(_searchController.text.toLowerCase()) ||
+              contact.phoneNumber.contains(_searchController.text))
+          .toList();
+    });
+  }
+
   void _addContact() {
     setState(() {
-      widget.contacts.add(Contact(
+      Contact newContact = Contact(
         name: _nameController.text,
         phoneNumber: _phoneNumberController.text,
         memberType: _memberTypeController.text,
-      ));
+      );
+      widget.contacts.add(newContact);
+      _filterContacts();
     });
     Navigator.pop(context);
+  }
+
+  void _deleteContact(int index) {
+    setState(() {
+      Contact contact = _filteredContacts[index];
+      widget.contacts.remove(contact);
+      _filterContacts();
+    });
+  }
+
+  void _editContact(int index) {
+    Contact contact = _filteredContacts[index];
+    _nameController.text = contact.name;
+    _phoneNumberController.text = contact.phoneNumber;
+    _memberTypeController.text = contact.memberType;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Contact'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(labelText: 'Name'),
+            ),
+            TextField(
+              controller: _phoneNumberController,
+              decoration: const InputDecoration(labelText: 'Phone Number'),
+            ),
+            TextField(
+              controller: _memberTypeController,
+              decoration: const InputDecoration(labelText: 'Member Type'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              setState(() {
+                Contact updatedContact = Contact(
+                  name: _nameController.text,
+                  phoneNumber: _phoneNumberController.text,
+                  memberType: _memberTypeController.text,
+                );
+                int originalIndex = widget.contacts.indexOf(contact);
+                widget.contacts[originalIndex] = updatedContact;
+                _filterContacts();
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.groupName),
+        title: Text('${widget.groupName} (${widget.contacts.length})'),
         actions: [
           TextButton.icon(
             onPressed: () {
@@ -60,38 +139,39 @@ class _GroupScreenState extends State<GroupScreen> {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                labelText: 'Search Members',
+                prefixIcon: Icon(Icons.search),
+              ),
+            ),
+          ),
           Expanded(
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
+            child: ListView.builder(
+              itemCount: _filteredContacts.length,
+              itemBuilder: (context, index) {
+                final contact = _filteredContacts[index];
+                return ListTile(
+                  title: Text('${contact.name} (${contact.memberType})'),
+                  subtitle: Text(contact.phoneNumber),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text('Contacts', style: TextStyle(fontSize: 18)),
-                      Expanded(
-                        child: ListView.builder(
-                          itemCount: widget.contacts.length,
-                          itemBuilder: (context, index) {
-                            final contact = widget.contacts[index];
-                            return ListTile(
-                              title: Text(
-                                  '${contact.name} (${contact.memberType})'),
-                              subtitle: Text(contact.phoneNumber),
-                            );
-                          },
-                        ),
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        onPressed: () => _editContact(index),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: () => _deleteContact(index),
                       ),
                     ],
                   ),
-                ),
-                const Expanded(
-                  child: Column(
-                    children: [
-                      Text('Message History', style: TextStyle(fontSize: 18)),
-                      // Add message history widget here
-                    ],
-                  ),
-                ),
-              ],
+                );
+              },
             ),
           ),
           ElevatedButton(
@@ -101,7 +181,7 @@ class _GroupScreenState extends State<GroupScreen> {
                 MaterialPageRoute(
                   builder: (context) => NewMessageScreen(
                     groupName: widget.groupName,
-                    contacts: widget.contacts,
+                    contacts: _filteredContacts,
                   ),
                 ),
               );
