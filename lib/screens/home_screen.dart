@@ -81,8 +81,8 @@ class HomeScreenState extends State<HomeScreen> {
       print("Group name is empty.");
     }
   }
-
   // Method to display contacts and allow saving to a group
+
   void _showContactsDialog() {
     showDialog(
       context: context,
@@ -91,24 +91,54 @@ class HomeScreenState extends State<HomeScreen> {
             List<bool>.filled(_newContacts.length, false);
         return StatefulBuilder(
           builder: (context, setState) {
+            int totalContacts = _newContacts.length;
+            int selectedCount = selectedContacts.where((c) => c).length;
+
             return AlertDialog(
-              title: const Text('Select Contacts to Save'),
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Select Contacts to Save'),
+                  Text('Total Contacts Loaded: $totalContacts'),
+                ],
+              ),
               content: SingleChildScrollView(
                 child: Column(
-                  children: List.generate(_newContacts.length, (index) {
-                    return CheckboxListTile(
-                      title: Text(_newContacts[index].name),
-                      value: selectedContacts[index],
-                      onChanged: (bool? value) {
-                        setState(() {
-                          selectedContacts[index] = value ?? false;
-                        });
-                      },
-                    );
-                  }),
+                  children: [
+                    Row(
+                      children: [
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              bool allSelected =
+                                  selectedContacts.every((c) => c);
+                              for (int i = 0;
+                                  i < selectedContacts.length;
+                                  i++) {
+                                selectedContacts[i] = !allSelected;
+                              }
+                            });
+                          },
+                          child: const Text('Select All'),
+                        ),
+                      ],
+                    ),
+                    ...List.generate(_newContacts.length, (index) {
+                      return CheckboxListTile(
+                        title: Text(_newContacts[index].name),
+                        value: selectedContacts[index],
+                        onChanged: (bool? value) {
+                          setState(() {
+                            selectedContacts[index] = value ?? false;
+                          });
+                        },
+                      );
+                    }),
+                  ],
                 ),
               ),
               actions: [
+                Text('Selected Contacts: $selectedCount'),
                 TextButton(
                   onPressed: () {
                     Navigator.pop(context);
@@ -116,15 +146,18 @@ class HomeScreenState extends State<HomeScreen> {
                   child: const Text('Cancel'),
                 ),
                 TextButton(
-                  onPressed: () {
+                  onPressed: () async {
                     List<Contact> selected = [];
                     for (int i = 0; i < selectedContacts.length; i++) {
                       if (selectedContacts[i]) {
                         selected.add(_newContacts[i]);
                       }
                     }
-                    groupService.addNewContactToGroup(
+                    print(
+                        "Saving contacts to group: '$_currentGroupName' with data: $selected");
+                    await groupService.addNewContactToGroup(
                         _currentGroupName, selected);
+                    await _loadGroups(); // Refresh groups after saving
                     Navigator.pop(context);
                   },
                   child: const Text('Save'),
@@ -137,10 +170,10 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
-// Method to import contacts via CSV
+  // Mathod to import a CSV file to get new contacts to a group
   Future<void> _importCSV() async {
     try {
-      print("CSV import button clicked"); // Debugging statement
+      print("CSV import button clicked");
 
       // Select File
       FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -148,49 +181,44 @@ class HomeScreenState extends State<HomeScreen> {
         allowedExtensions: ['csv'],
       );
 
-      print("File picker triggered"); // Debugging statement
-
-      // Process File
       if (result != null && result.files.isNotEmpty) {
         PlatformFile platformFile = result.files.first;
         String? filePath = platformFile.path;
 
         if (filePath != null) {
           File file = File(filePath);
-          print("Selected file path: ${file.path}"); // Debugging statement
-          _newContacts = await csvService.importContactsFromCSV(file);
+          print("Selected file path: ${file.path}");
+
+          // Import contacts from CSV
+          List<Contact> importedContacts =
+              await csvService.importContactsFromCSV(file);
+          print('Imported contacts: $importedContacts');
 
           // Stage new contacts
-          if (_newContacts.isNotEmpty) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('New contacts staged from file!')),
-              );
-            }
+          if (importedContacts.isNotEmpty) {
+            setState(() {
+              _newContacts = importedContacts;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('New contacts staged from file!')),
+            );
+
+            // Display dialog to select and save contacts to a group
+            _showContactsDialog();
+          } else {
+            print('No contacts imported.');
           }
-
-          // Display dialog to select and save contacts to a group
-          _showContactsDialog();
-
-          // Reset Variables and Reload Groups
-          await _loadGroups();
-          setState(() {
-            _currentGroupName = '';
-            _newContacts = [];
-          });
         } else {
-          print("No file path found."); // Debugging statement
+          print("No file path found.");
         }
       } else {
-        print("No file selected."); // Debugging statement
+        print("No file selected.");
       }
     } catch (e) {
-      print("Error importing CSV: $e"); // Debugging statement
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error importing CSV: $e')),
-        );
-      }
+      print("Error importing CSV: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error importing CSV: $e')),
+      );
     }
   }
 

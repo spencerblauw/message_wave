@@ -5,9 +5,14 @@ class Contact {
   final String name;
   final String phoneNumber;
   final String memberType;
+  bool isSelected;
 
-  Contact(
-      {required this.name, required this.phoneNumber, this.memberType = ''});
+  Contact({
+    required this.name,
+    required this.phoneNumber,
+    this.memberType = '',
+    this.isSelected = false,
+  });
 
   // Method to create new contact from Json
   factory Contact.fromJson(Map<String, dynamic> json) {
@@ -15,6 +20,7 @@ class Contact {
       name: json['name'],
       phoneNumber: json['phoneNumber'],
       memberType: json['memberType'],
+      isSelected: json['isSelected'] ?? false,
     );
   }
 
@@ -24,6 +30,7 @@ class Contact {
       'name': name,
       'phoneNumber': phoneNumber,
       'memberType': memberType,
+      'isSelected': isSelected,
     };
   }
 
