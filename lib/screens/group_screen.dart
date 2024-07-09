@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/contact.dart';
 import 'new_message_screen.dart';
 import 'message_history_screen.dart';
+import '../services/group_service.dart' as groupService;
 
 class GroupScreen extends StatefulWidget {
   final String groupName;
@@ -49,27 +50,42 @@ class _GroupScreenState extends State<GroupScreen> {
     });
   }
 
-  void _addContact() {
+  // Method to add contact
+  void _addContact() async {
+    Contact newContact = Contact(
+      name: _nameController.text,
+      phoneNumber: _phoneNumberController.text,
+      memberType: _memberTypeController.text,
+    );
+
+    // Add the new contact to persistent storage
+    await groupService.addNewContactToGroup(widget.groupName, [newContact]);
+
+    // Refresh the contacts from persistent storage
+    await groupService.loadContacts(widget.groupName);
+
+    // Directly update the state with the new contact
     setState(() {
-      Contact newContact = Contact(
-        name: _nameController.text,
-        phoneNumber: _phoneNumberController.text,
-        memberType: _memberTypeController.text,
-      );
       widget.contacts.add(newContact);
-      _filterContacts();
+      _filterContacts(); // Reapply the search filter if any
     });
+
     Navigator.pop(context);
   }
 
+  // Method to delete contact
   void _deleteContact(int index) {
     setState(() {
       Contact contact = _filteredContacts[index];
       widget.contacts.remove(contact);
       _filterContacts();
     });
+
+    // Update the persistent storage
+    groupService.saveGroup(widget.groupName, widget.contacts);
   }
 
+  // Method to edit contact
   void _editContact(int index) {
     Contact contact = _filteredContacts[index];
     _nameController.text = contact.name;
@@ -109,7 +125,11 @@ class _GroupScreenState extends State<GroupScreen> {
                 widget.contacts[originalIndex] = updatedContact;
                 _filterContacts();
               });
-              Navigator.pop(context);
+
+              // Update the persistent storage
+              groupService.saveGroup(widget.groupName, widget.contacts);
+
+              Navigator.pop(context); // Close the dialog only
             },
             child: const Text('Save'),
           ),

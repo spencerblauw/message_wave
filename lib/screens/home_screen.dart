@@ -468,7 +468,7 @@ class HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-                  //Group (button)
+                  // Group (button)
                   onTap: () {
                     Navigator.push(
                       context,
@@ -478,7 +478,10 @@ class HomeScreenState extends State<HomeScreen> {
                           contacts: _groups[groupName]!,
                         ),
                       ),
-                    );
+                    ).then((_) {
+                      // Refresh groups when returning to the home screen
+                      _loadGroups();
+                    });
                   },
                 );
               },

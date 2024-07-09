@@ -77,3 +77,35 @@ Future<Map<String, int>> addNewContactToGroup(
     'duplicateContacts': duplicateContactsCount,
   };
 }
+
+// Function to save last selections for a group
+Future<void> saveLastSelections(String groupName, String prefix,
+    String? nameType, String customPrefix, String suffix) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString('${groupName}_prefix', prefix);
+  await prefs.setString('${groupName}_nameType', nameType ?? '');
+  await prefs.setString('${groupName}_customPrefix', customPrefix);
+  await prefs.setString('${groupName}_suffix', suffix);
+}
+
+// Function to load last selections for a group
+Future<Map<String, String?>> loadLastSelections(String groupName) async {
+  final prefs = await SharedPreferences.getInstance();
+  return {
+    'prefix': prefs.getString('${groupName}_prefix') ?? 'Hey, ',
+    'nameType': prefs.getString('${groupName}_nameType'),
+    'customPrefix': prefs.getString('${groupName}_customPrefix') ?? 'fellas, ',
+    'suffix': prefs.getString('${groupName}_suffix') ?? '',
+  };
+}
+
+// Method to load contacts for a specific group
+Future<List<Contact>> loadContacts(String groupName) async {
+  final prefs = await SharedPreferences.getInstance();
+  final String key = 'group_$groupName';
+  final String? groupContactsJson = prefs.getString(key);
+  if (groupContactsJson != null) {
+    return Contact.decode(groupContactsJson);
+  }
+  return [];
+}
