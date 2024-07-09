@@ -9,7 +9,7 @@ Future<void> resetAllData() async {
 //Method to reset message data
 Future<void> resetMessages() async {
   final prefs = await SharedPreferences.getInstance();
-  await prefs.remove('messages');
+  await prefs.remove('messageHistory');
 }
 
 //Method to reset log data

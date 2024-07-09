@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/contact.dart';
 import '../services/message_service.dart' as messageService;
 import '../services/group_service.dart' as groupService;
+import 'message_history_screen.dart';
 
 class NewMessageScreen extends StatefulWidget {
   final String groupName;
@@ -20,12 +21,13 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
   final TextEditingController searchController = TextEditingController();
   final TextEditingController prefixController =
       TextEditingController(text: 'Hey, ');
-  final TextEditingController suffixController = TextEditingController();
+  final TextEditingController suffixController =
+      TextEditingController(text: 'Thanks!');
   final TextEditingController customPrefixController =
       TextEditingController(text: 'fellas, ');
 
   String? selectedMemberType;
-  String? selectedNameType;
+  String? selectedNameType = 'First Name';
   List<Contact> filteredContacts = [];
   List<Contact> selectedContacts = [];
   List<String> memberTypes = [];
@@ -69,27 +71,49 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
     });
   }
 
-  // Function to get name based on the selected name type
-  String getContactName(Contact contact) {
+  // Function to build the complete message for preview
+  String buildCompleteMessage(Contact contact) {
+    String name;
     switch (selectedNameType) {
       case 'First Name':
-        return contact.name.split(' ').first;
+        name = contact.name.split(' ').first;
+        break;
       case 'Full Name':
-        return contact.name;
+        name = contact.name;
+        break;
       case 'Custom':
-        return customPrefixController.text;
+        name = customPrefixController.text;
+        break;
+      case 'None':
+        name = '';
+        break;
       default:
-        return '';
+        name = '';
     }
-  }
-
-  // Function to build the complete message for preview
-  String buildCompleteMessage() {
-    return '${prefixController.text} ${getContactName(filteredContacts.first)} ${messageController.text}\n${suffixController.text}';
+    return '${prefixController.text} $name ${messageController.text}\n${suffixController.text}';
   }
 
   // Function to show message preview dialog
   void showMessagePreview() {
+    if (messageController.text.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Warning'),
+            content: const Text('Message is empty!'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -98,7 +122,7 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
           content: SingleChildScrollView(
             child: ListBody(
               children: [
-                Text(buildCompleteMessage()),
+                Text(buildCompleteMessage(filteredContacts.first)),
                 const SizedBox(height: 20),
                 Text('Recipients (${selectedContacts.length}):'),
                 Column(
@@ -120,14 +144,21 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
             ),
             TextButton(
               onPressed: () async {
-                await messageService.sendMessage(
-                    buildCompleteMessage(),
-                    widget.groupName,
-                    selectedMemberType ?? '',
-                    selectedContacts);
+                await messageService.MessageService().sendMessage(
+                  '${prefixController.text} <name> ${messageController.text}\n${suffixController.text}',
+                  widget.groupName,
+                  selectedNameType ?? 'First Name',
+                  customPrefixController.text,
+                  selectedContacts,
+                );
                 Navigator.of(context).pop();
                 if (context.mounted) {
-                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const MessageHistoryScreen(),
+                    ),
+                  );
                 }
               },
               child: const Text('Send'),

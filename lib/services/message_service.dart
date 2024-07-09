@@ -1,123 +1,117 @@
-import 'package:logging/logging.dart';
+import 'dart:convert';
 import 'package:flutter_sms/flutter_sms.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
-import '../models/message.dart';
 import '../models/contact.dart';
 
-// Message service Logger
-final Logger _logger = Logger('MessageService');
+class MessageService {
+  // Method to send SMS to a list of recipients and store the message history
+  Future<void> sendMessage(String messageTemplate, String groupName,
+      String nameType, String customPrefix, List<Contact> recipients) async {
+    List<Map<String, dynamic>> failedRecipients = [];
+    List<String> sentMessages = [];
 
-// Method to send an individual message to each recipient,
-// and keep track of failed/successful messages
-Future<void> sendMessage(String content, String groupName, String memberType,
-    List<Contact> contacts) async {
-  int successCount = 0;
-  List<String> failedRecipients = [];
-  List<String> failedRecipientsNames = [];
-  //Add String prefix
-  //Add String suffix
-  //text entry from a prompt saying "Pick your desired greeting for everyone:"
-  // Please enter your desired custom "prefix"
-  // "<prefix> <firstName>, <message>, <suffix>"
-  // "Please enter your desired message:"
-  // <prefix> <firstName>, <message>, <suffix>"
-  // Please enter your desired custom "suffix"
-  // "Your messages will be recieved like this:
-  // <prefix> <firstName>, <message>, <suffix>"
-  // "Are you ready to send?"
-  // if no: message saved in drafts
-  // if yes: message sent, saved in message history
+    // Iterate through the list of recipients and send SMS to each
+    for (var contact in recipients) {
+      String personalizedMessage = _personalizeMessage(
+        messageTemplate,
+        contact,
+        nameType,
+        customPrefix,
+      );
 
-  //Create personal message for recipient
-  for (Contact contact in contacts) {
-    String message = 'Hey ${contact.name.split(' ').first}, $content';
+      sentMessages.add(personalizedMessage);
 
-    //Send SMS of personal message to recipient
-    try {
-      bool success = await _sendSms(message, contact.phoneNumber, contact.name);
-
-      if (success) {
-        //Incriment counter and log the individual message history
-        successCount++;
-        _logger.info(
-            'Message sent to $groupName member type ${contact.memberType}: ${contact.name} (${contact.phoneNumber}): $content');
-      } else {
-        //Add member to failed message list and log the individual message history
-        failedRecipients.add(contact.phoneNumber);
-        failedRecipientsNames.add(contact.name);
-        _logger.warning(
-            'FAILED to send message to $groupName member type ${contact.memberType}: ${contact.name} (${contact.phoneNumber}): $content');
+      try {
+        await sendSMS(
+          message: personalizedMessage,
+          recipients: [contact.phoneNumber],
+        );
+      } catch (e) {
+        // If sending SMS fails, add the contact and error message to failedRecipients list
+        failedRecipients.add({
+          'contact': contact.toJson(),
+          'error': e.toString(),
+        });
       }
-
-      //Catch and log error for failed SMS attempt
-    } catch (e) {
-      failedRecipients.add(contact.phoneNumber);
-      failedRecipientsNames.add(contact.name);
-      _logger.severe(
-          'Error sending message to ${contact.name} (${contact.phoneNumber}): $content',
-          e);
     }
+
+    // Store the message history after sending SMS
+    await _storeMessageHistory(
+      groupName: groupName,
+      messageTemplate: messageTemplate,
+      personalizedMessages: sentMessages,
+      nameType: nameType,
+      customPrefix: customPrefix,
+      recipients: recipients,
+      failedRecipients: failedRecipients,
+    );
   }
 
-  //Create group message summary
-  final message = Message(
-    content: content,
-    groupName: groupName,
-    memberType: memberType,
-    successfulSends: successCount,
-    totalRecipients: contacts.length,
-    dateTime: DateTime.now(),
-    failedRecipients: failedRecipients,
-  );
+  // Private method to personalize the message for each contact
+  String _personalizeMessage(
+    String messageTemplate,
+    Contact contact,
+    String nameType,
+    String customPrefix,
+  ) {
+    String name;
+    switch (nameType) {
+      case 'First Name':
+        name = contact.name.split(' ').first;
+        break;
+      case 'Full Name':
+        name = contact.name;
+        break;
+      case 'Custom':
+        name = customPrefix;
+        break;
+      case 'None':
+        name = '';
+        break;
+      default:
+        name = '';
+    }
 
-  //Save group message summary
-  await _saveMessage(message);
-  _logger.info(
-      'Messages sent to $groupName member type $memberType ($successCount/${contacts.length}) with content: $content. Failed recipients: ${failedRecipientsNames.join(', ')}');
-}
-
-// Method to send SMS from local device
-Future<bool> _sendSms(String message, String phoneNumber, String name) async {
-  try {
-    //Attempt to send SMS
-    String result = await sendSMS(message: message, recipients: [phoneNumber]);
-    //Get Result
-    _logger.info('Result from sendSMS: $result');
-    return result ==
-        'SMS Sent to $phoneNumber!'; //Return True or False based on result
-    //Catch IF error
-  } catch (e) {
-    //Log error message
-    _logger.severe('Error sending SMS to $name $phoneNumber: $message', e);
-    return false;
+    return messageTemplate.replaceAll('<name>', name);
   }
-}
 
-// Update/save message history
-Future<void> _saveMessage(Message message) async {
-  final prefs = await SharedPreferences.getInstance();
-  //get old message history from json
-  final messages = await getMessages();
-  //add new message to history
-  messages.add(message);
-  //format to json
-  final messagesJson = messages.map((msg) => msg.toJson()).toList();
-  //save messages with the updated json additions
-  await prefs.setString('messages', jsonEncode(messagesJson));
-}
+  // Private method to store message history in shared preferences
+  Future<void> _storeMessageHistory({
+    required String groupName,
+    required String messageTemplate,
+    required List<String> personalizedMessages,
+    required String nameType,
+    required String customPrefix,
+    required List<Contact> recipients,
+    required List<Map<String, dynamic>> failedRecipients,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> histories = prefs.getStringList('messageHistory') ?? [];
 
-// Get old message history from json
-Future<List<Message>> getMessages() async {
-  final prefs = await SharedPreferences.getInstance();
-  //get 'messages' json
-  final messagesJson = prefs.getString('messages');
-  //return empty if empty
-  if (messagesJson == null) {
-    return [];
+    // Create a map for the new message history entry
+    final newHistoryEntry = {
+      'groupName': groupName,
+      'messageTemplate': messageTemplate,
+      'personalizedMessages': personalizedMessages,
+      'nameType': nameType,
+      'customPrefix': customPrefix,
+      'dateTime': DateTime.now().toIso8601String(),
+      'recipients': recipients.map((e) => e.toJson()).toList(),
+      'failedRecipients': failedRecipients,
+    };
+
+    // Convert the map to a JSON string and add it to the histories list
+    histories.add(jsonEncode(newHistoryEntry));
+
+    // Save the updated list back to shared preferences
+    await prefs.setStringList('messageHistory', histories);
   }
-  //Create list of prior messages from the json
-  final List<dynamic> messagesList = jsonDecode(messagesJson);
-  //Return list of prior messages
-  return messagesList.map((json) => Message.fromJson(json)).toList();
+
+  // Method to load message history from shared preferences
+  Future<List<Map<String, dynamic>>> loadMessageHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> histories = prefs.getStringList('messageHistory') ?? [];
+    // Decode each JSON string into a Map and return the list
+    return histories.map((e) => jsonDecode(e) as Map<String, dynamic>).toList();
+  }
 }
