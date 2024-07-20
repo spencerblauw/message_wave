@@ -184,39 +184,35 @@ class HomeScreenState extends State<HomeScreen> {
         PlatformFile platformFile = result.files.first;
         String? filePath = platformFile.path;
 
-        if (filePath != null) {
-          File file = File(filePath);
-          print("Selected file path: ${file.path}");
+        File file = File(filePath!);
+        print("Selected file path: ${file.path}");
 
-          // Import contacts from CSV
-          List<Contact> importedContacts =
-              await csvService.importContactsFromCSV(file);
-          print('Imported contacts: $importedContacts');
-          // Filter out duplicates
-          List<Contact> uniqueContacts = importedContacts.where((newContact) {
-            return !_groups[groupName]!.any((existingContact) =>
-                existingContact.name == newContact.name &&
-                existingContact.phoneNumber == newContact.phoneNumber);
-          }).toList();
-          // Stage new contacts
-          if (uniqueContacts.isNotEmpty) {
-            setState(() {
-              _newContacts = uniqueContacts;
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('New contacts staged from file!')),
-            );
+        // Import contacts from CSV
+        List<Contact> importedContacts =
+            await csvService.importContactsFromCSV(file);
+        print('Imported contacts: $importedContacts');
+        // Filter out duplicates
+        List<Contact> uniqueContacts = importedContacts.where((newContact) {
+          return !_groups[groupName]!.any((existingContact) =>
+              existingContact.name == newContact.name &&
+              existingContact.phoneNumber == newContact.phoneNumber);
+        }).toList();
+        // Stage new contacts
+        if (uniqueContacts.isNotEmpty) {
+          setState(() {
+            _newContacts = uniqueContacts;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('New contacts staged from file!')),
+          );
 
-            // Display dialog to select and save contacts to a group
-            _showContactsDialog(groupName);
-          } else {
-            print('No unique contacts imported.');
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No unique contacts to import.')),
-            );
-          }
+          // Display dialog to select and save contacts to a group
+          _showContactsDialog(groupName);
         } else {
-          print("No file path found.");
+          print('No unique contacts imported.');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No unique contacts to import.')),
+          );
         }
       } else {
         print("No file selected.");
