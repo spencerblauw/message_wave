@@ -1,5 +1,6 @@
-package com.example.message_wave
+package com.perigeesolutions.message_wave
 
 import io.flutter.embedding.android.FlutterActivity
 
-class MainActivity: FlutterActivity()
+class MainActivity : FlutterActivity() {
+}
