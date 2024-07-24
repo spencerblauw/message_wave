@@ -35,3 +35,7 @@ Message Wave is a Flutter application designed to facilitate easy and efficient 
 2. Add contacts to the group manually or import them via a CSV file.
 3. Send messages to the group or specific members.
 4. View message history and logs to track sent and failed messages.
+
+# Privacy Policy
+
+https://www.github.io/spencerblauw/messagewave/privacypolicy
