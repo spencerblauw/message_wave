@@ -1,20 +1,16 @@
-// ignore_for_file: avoid_print
-
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:message_wave/main.dart';
 import '../models/contact.dart';
 import '../services/group_service.dart' as groupService;
 import '../services/csv_service.dart' as csvService;
 import '../services/reset_services.dart' as resetServices;
 import '../screens/new_message_screen.dart';
 import '../screens/message_history_screen.dart';
-import '../screens/group_screen.dart';
 import '../screens/tutorial_screen.dart';
+import '../screens/group_screen.dart';
 
-// Create the Home Screen class
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
@@ -22,14 +18,11 @@ class HomeScreen extends StatefulWidget {
   HomeScreenState createState() => HomeScreenState();
 }
 
-// Create the Home Screen state
 class HomeScreenState extends State<HomeScreen> {
-  // Create state variables
   String _currentGroupName = '';
   List<Contact> _newContacts = [];
   Map<String, List<Contact>> _groups = {};
 
-  //Method to request permissions for files and sms
   Future<void> _requestPermissions() async {
     var status = await Permission.storage.status;
     if (!status.isGranted) {
@@ -42,15 +35,13 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Method to initialize the HomeScreen
   @override
   void initState() {
     super.initState();
     _loadGroups();
-    _requestPermissions(); // Request permissions
+    _requestPermissions();
   }
 
-  // Internal method to load previous group data from the groupContactsJson
   Future<void> _loadGroups() async {
     final groups = await groupService.loadGroups();
     setState(() {
@@ -59,19 +50,15 @@ class HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // Method to create New Group
   Future<void> _createGroup() async {
     if (_currentGroupName.isNotEmpty) {
       print("Creating group: $_currentGroupName with contacts: $_newContacts");
-      // Save Group
       await groupService.saveGroup(_currentGroupName, _newContacts);
-      // Reset Variables and Reload Groups
       await _loadGroups();
       setState(() {
         _currentGroupName = '';
         _newContacts = [];
       });
-      // Display success Message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Group created successfully!')),
@@ -81,7 +68,6 @@ class HomeScreenState extends State<HomeScreen> {
       print("Group name is empty.");
     }
   }
-  // Method to display contacts and allow saving to a group
 
   void _showContactsDialog(String groupName) {
     showDialog(
@@ -157,7 +143,7 @@ class HomeScreenState extends State<HomeScreen> {
                         "Saving contacts to group: '$groupName' with data: $selected");
                     await groupService.addNewContactToGroup(
                         groupName, selected);
-                    await _loadGroups(); // Refresh groups after saving
+                    await _loadGroups();
                     Navigator.pop(context);
                   },
                   child: const Text('Save'),
@@ -170,11 +156,9 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Mathod to import a CSV file to get new contacts to a group
   Future<void> _importCSV(String groupName) async {
     try {
       print('groupname is $groupName in importcsv');
-      // Select File
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['csv'],
@@ -187,17 +171,14 @@ class HomeScreenState extends State<HomeScreen> {
         File file = File(filePath!);
         print("Selected file path: ${file.path}");
 
-        // Import contacts from CSV
         List<Contact> importedContacts =
             await csvService.importContactsFromCSV(file);
         print('Imported contacts: $importedContacts');
-        // Filter out duplicates
         List<Contact> uniqueContacts = importedContacts.where((newContact) {
           return !_groups[groupName]!.any((existingContact) =>
               existingContact.name == newContact.name &&
               existingContact.phoneNumber == newContact.phoneNumber);
         }).toList();
-        // Stage new contacts
         if (uniqueContacts.isNotEmpty) {
           setState(() {
             _newContacts = uniqueContacts;
@@ -206,7 +187,6 @@ class HomeScreenState extends State<HomeScreen> {
             const SnackBar(content: Text('New contacts staged from file!')),
           );
 
-          // Display dialog to select and save contacts to a group
           _showContactsDialog(groupName);
         } else {
           print('No unique contacts imported.');
@@ -225,15 +205,12 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  //Method when Reset Data button is clicked
   Future<void> _resetData() async {
-    //Create option flags
     bool deleteGroups = false;
     bool deleteMessages = false;
     bool deleteLogs = false;
     bool deleteAll = false;
 
-    //Create dialogue box with options on what to delete
     final result = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -245,7 +222,6 @@ class HomeScreenState extends State<HomeScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text('Select the data you want to delete:'),
-                  //Group data
                   CheckboxListTile(
                     title: const Text('Delete Group Data'),
                     value: deleteGroups,
@@ -255,7 +231,6 @@ class HomeScreenState extends State<HomeScreen> {
                       });
                     },
                   ),
-                  //Log data
                   CheckboxListTile(
                     title:
                         const Text('Would you like to delete all log history?'),
@@ -266,7 +241,6 @@ class HomeScreenState extends State<HomeScreen> {
                       });
                     },
                   ),
-                  //Message history data
                   CheckboxListTile(
                     title: const Text('Would you like to delete all messages?'),
                     value: deleteMessages,
@@ -290,7 +264,6 @@ class HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
-              //Buttons to confirm or cancel
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
@@ -306,7 +279,6 @@ class HomeScreenState extends State<HomeScreen> {
         );
       },
     );
-    //Execute based on selection after confirmation
     if (result == true) {
       await resetServices.resetData(
           deleteGroups: deleteGroups,
@@ -314,7 +286,6 @@ class HomeScreenState extends State<HomeScreen> {
           deleteLogs: deleteLogs,
           deleteAll: deleteAll);
       await _loadGroups();
-      //Notify User data has been deleted
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Data has been erased!')),
@@ -323,53 +294,90 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  //Create Top App Bar buttons and Group display panel
+  Future<bool> showConfirmationDialog(
+      BuildContext context, String title, String content) {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(content),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Confirm'),
+            ),
+          ],
+        );
+      },
+    ).then((value) => value ?? false);
+  }
+
   @override
   Widget build(BuildContext context) {
     print("Building HomeScreen with groups: $_groups");
     return Scaffold(
       appBar: AppBar(
-        //Main Title
-        title: const Align(
-            alignment: Alignment.centerLeft, child: Text('Message Wave')),
-
-        actions: [
-          //Tutorial button
-          TextButton.icon(
-            icon: const Icon(Icons.help),
-            label: const Text('HELP'),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const TutorialScreen()),
-              );
-            },
-          ),
-
-          //Message history button
-          TextButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const MessageHistoryScreen()),
-              );
-            },
-            icon: const Icon(Icons.history),
-            label: const Text('History'),
-          ),
-
-          //Reset data button
-          TextButton.icon(
-            onPressed: () {
-              _resetData();
-            },
-            icon: const Icon(Icons.restore),
-            label: const Text('RESET DATA'),
-          ),
-        ],
+        automaticallyImplyLeading: false,
+        toolbarHeight: 120.0,
+        flexibleSpace: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(8.0),
+              child: Text(
+                'Message Wave',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8.0,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.help),
+                  tooltip: 'Help',
+                  color: Colors.purple,
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const TutorialScreen()),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.history_rounded),
+                  tooltip: 'History',
+                  color: Colors.purple,
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const MessageHistoryScreen()),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Reset Data',
+                  color: Colors.purple,
+                  onPressed: () {
+                    _resetData();
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-      //Logo
       body: Column(
         children: [
           Center(
@@ -379,7 +387,6 @@ class HomeScreenState extends State<HomeScreen> {
               width: 100,
             ),
           ),
-          //Create New Group Button
           ElevatedButton(
             onPressed: () {
               setState(() {
@@ -410,75 +417,87 @@ class HomeScreenState extends State<HomeScreen> {
             },
             child: const Text('Create New Group'),
           ),
-
-          //Group display Panel
           Expanded(
             child: ListView.builder(
               itemCount: _groups.keys.length,
               itemBuilder: (context, index) {
                 String groupName = _groups.keys.elementAt(index);
-                return ListTile(
-                  title:
-                      Text('$groupName (${_groups[groupName]?.length ?? 0})'),
-                  //Per Group (horizontal rows)
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      //Send a new message button
-                      TextButton.icon(
-                        icon: const Icon(Icons.send),
-                        label: const Text('Send New Message'),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => NewMessageScreen(
-                                groupName: groupName,
-                                contacts: _groups[groupName]!,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      //Add contacts to group via CSV button
-                      TextButton.icon(
-                        icon: const Icon(Icons.import_contacts),
-                        label: const Text('Add new contacts via CSV'),
-                        onPressed: () async {
-                          print(
-                              "CSV import button clicked for group: $groupName"); // Debugging statement
-                          await _importCSV(groupName);
-                        },
-                      ),
-                      //Delete group button
-                      TextButton.icon(
-                        icon: const Icon(Icons.delete),
-                        label: const Text('Delete Group'),
-                        onPressed: () async {
-                          if (await showConfirmationDialog(context, 'Confirm',
-                              'Are you sure you want to delete $groupName?')) {
-                            await groupService.deleteGroup(groupName);
-                            await _loadGroups();
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                  // Group (button)
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => GroupScreen(
-                          groupName: groupName,
-                          contacts: _groups[groupName]!,
+                return Card(
+                  color: Colors.purple[50], // Light purple color
+                  margin: const EdgeInsets.all(8.0),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => GroupScreen(
+                            groupName: groupName,
+                            contacts: _groups[groupName]!,
+                          ),
                         ),
+                      ).then((_) {
+                        _loadGroups();
+                      });
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$groupName (${_groups[groupName]?.length ?? 0})',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 8.0),
+                          ButtonBar(
+                            alignment: MainAxisAlignment.start,
+                            children: [
+                              TextButton.icon(
+                                icon: const Icon(Icons.send,
+                                    color: Colors.purple),
+                                label: const Text('Send New Message'),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => NewMessageScreen(
+                                        groupName: groupName,
+                                        contacts: _groups[groupName]!,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              TextButton.icon(
+                                icon: const Icon(Icons.import_contacts,
+                                    color: Colors.purple),
+                                label: const Text('Add Contacts via CSV'),
+                                onPressed: () async {
+                                  print(
+                                      "CSV import button clicked for group: $groupName");
+                                  await _importCSV(groupName);
+                                },
+                              ),
+                              TextButton.icon(
+                                icon: const Icon(Icons.delete,
+                                    color: Colors.purple),
+                                label: const Text('Delete Group'),
+                                onPressed: () async {
+                                  if (await showConfirmationDialog(
+                                      context,
+                                      'Confirm',
+                                      'Are you sure you want to delete $groupName?')) {
+                                    await groupService.deleteGroup(groupName);
+                                    await _loadGroups();
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ).then((_) {
-                      // Refresh groups when returning to the home screen
-                      _loadGroups();
-                    });
-                  },
+                    ),
+                  ),
                 );
               },
             ),
@@ -487,4 +506,27 @@ class HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
+
+Future<bool> showConfirmationDialog(
+    BuildContext context, String title, String content) {
+  return showDialog<bool>(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text(title),
+        content: Text(content),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      );
+    },
+  ).then((value) => value ?? false);
 }
