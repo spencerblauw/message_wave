@@ -1,12 +1,68 @@
 import 'dart:convert';
-import 'package:flutter_sms/flutter_sms.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/contact.dart';
+import '../models/contact.dart'; // Ensure this path is correct
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/services.dart';
+import 'dart:io' show Platform;
+import 'package:flutter_sms/flutter_sms.dart';
+
+// Request SMS permissions
+Future<void> _requestSmsPermission() async {
+  var status = await Permission.sms.status;
+  if (!status.isGranted) {
+    await Permission.sms.request();
+  }
+}
+
+class SmsSender {
+  static const platform = MethodChannel('com.example.message_wave/sms');
+
+  Future<void> sendSms(String phoneNumber, String message) async {
+    if (Platform.isAndroid) {
+      await _sendSmsAndroid(phoneNumber, message);
+    } else if (Platform.isIOS) {
+      await _sendSmsIOS(phoneNumber, message);
+    }
+  }
+
+  Future<void> _sendSmsAndroid(String phoneNumber, String message) async {
+    try {
+      var status = await Permission.sms.status;
+      if (!status.isGranted) {
+        await Permission.sms.request();
+      }
+
+      await platform.invokeMethod('sendSms', <String, dynamic>{
+        'phoneNumber': phoneNumber,
+        'message': message,
+      });
+    } on PlatformException catch (e) {
+      print("Failed to send SMS: '${e.message}'.");
+    }
+  }
+
+  Future<void> _sendSmsIOS(String phoneNumber, String message) async {
+    try {
+      String result = await sendSMS(
+        message: message,
+        recipients: [phoneNumber],
+      );
+      print(result);
+    } catch (e) {
+      print("Failed to send SMS on iOS: ${e.toString()}");
+    }
+  }
+}
 
 class MessageService {
+  final SmsSender _smsSender = SmsSender();
+
   // Method to send SMS to a list of recipients and store the message history
   Future<void> sendMessage(String messageTemplate, String groupName,
       String nameType, String customPrefix, List<Contact> recipients) async {
+    //Need to comment the following line out when testing on a deviceless emulator
+    await _requestSmsPermission(); // Ensure permissions are granted
+
     List<Map<String, dynamic>> failedRecipients = [];
     List<String> sentMessages = [];
 
@@ -22,10 +78,7 @@ class MessageService {
       sentMessages.add(personalizedMessage);
 
       try {
-        await sendSMS(
-          message: personalizedMessage,
-          recipients: [contact.phoneNumber],
-        );
+        await _smsSender.sendSms(contact.phoneNumber, personalizedMessage);
       } catch (e) {
         // If sending SMS fails, add the contact and error message to failedRecipients list
         failedRecipients.add({
