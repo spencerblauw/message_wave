@@ -1,10 +1,12 @@
 package com.perigeesolutions.message_wave
-
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
+import android.telephony.SmsManager
 
 class MainActivity : FlutterActivity() { 
   
-  private val CHANNEL = "com.example.message_wave/sms"
+  private val CHANNEL = "com.perigeesolutions.message_wave/sms"
 
   override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
     super.configureFlutterEngine(flutterEngine)

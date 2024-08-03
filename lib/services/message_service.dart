@@ -15,7 +15,8 @@ Future<void> _requestSmsPermission() async {
 }
 
 class SmsSender {
-  static const platform = MethodChannel('com.example.message_wave/sms');
+  static const platform =
+      MethodChannel('com.perigeesolutions.message_wave/sms');
 
   Future<void> sendSms(String phoneNumber, String message) async {
     if (Platform.isAndroid) {
