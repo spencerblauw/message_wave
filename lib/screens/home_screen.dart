@@ -208,7 +208,6 @@ class HomeScreenState extends State<HomeScreen> {
   Future<void> _resetData() async {
     bool deleteGroups = false;
     bool deleteMessages = false;
-    bool deleteLogs = false;
     bool deleteAll = false;
 
     final result = await showDialog<bool>(
@@ -223,7 +222,7 @@ class HomeScreenState extends State<HomeScreen> {
                 children: [
                   const Text('Select the data you want to delete:'),
                   CheckboxListTile(
-                    title: const Text('Delete Group Data'),
+                    title: const Text('Delete Groups'),
                     value: deleteGroups,
                     onChanged: (bool? value) {
                       setState(() {
@@ -232,17 +231,7 @@ class HomeScreenState extends State<HomeScreen> {
                     },
                   ),
                   CheckboxListTile(
-                    title:
-                        const Text('Would you like to delete all log history?'),
-                    value: deleteLogs,
-                    onChanged: (bool? value) {
-                      setState(() {
-                        deleteLogs = value ?? false;
-                      });
-                    },
-                  ),
-                  CheckboxListTile(
-                    title: const Text('Would you like to delete all messages?'),
+                    title: const Text('Delete all msgs?'),
                     value: deleteMessages,
                     onChanged: (bool? value) {
                       setState(() {
@@ -251,13 +240,12 @@ class HomeScreenState extends State<HomeScreen> {
                     },
                   ),
                   CheckboxListTile(
-                    title: const Text('Reset ALL data?'),
+                    title: const Text('Reset data?'),
                     value: deleteAll,
                     onChanged: (bool? value) {
                       setState(() {
                         deleteAll = value ?? false;
                         deleteMessages = value ?? false;
-                        deleteLogs = value ?? false;
                         deleteGroups = value ?? false;
                       });
                     },
@@ -283,7 +271,6 @@ class HomeScreenState extends State<HomeScreen> {
       await resetServices.resetData(
           deleteGroups: deleteGroups,
           deleteMessages: deleteMessages,
-          deleteLogs: deleteLogs,
           deleteAll: deleteAll);
       await _loadGroups();
       if (mounted) {
