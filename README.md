@@ -36,5 +36,4 @@ Message Wave is a Flutter application designed to facilitate easy and efficient 
 4. View message history and logs to track sent and failed messages.
 
 ## Privacy Policy
-
-<https://www.github.io/spencerblauw/messagewave/privacypolicy>
+<https://spencerblauw.github.io/message_wave/>
